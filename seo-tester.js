@@ -3,12 +3,15 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
 const csvParser = require('csv-parser');
 const async = require('async');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter; // Import the library
 
 puppeteer.use(StealthPlugin());
 
 const csvFile = 'urls.csv';
+const outputCsvFile = 'output.csv';
 
 (async () => {
+  const validationResults = []; 
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36');
@@ -22,7 +25,7 @@ const csvFile = 'urls.csv';
       rows.push(row);
     })
     .on('end', async () => {
-      const concurrency = 3; // Adjust this value according to your system's capabilities
+      const concurrency = 1; // Adjust this value according to your system's capabilities
       const queue = async.queue(async (row, callback) => {
         // Your existing CSV processing code here
 
@@ -48,6 +51,7 @@ const csvFile = 'urls.csv';
             console.log('Twitter Card tags:', twitterTags);
 
             // Compare with expected values
+            const validationResult = { url };
             let allTagsValid = true;
             for (const key in row) {
               if (key !== 'url') {
@@ -57,12 +61,17 @@ const csvFile = 'urls.csv';
 
                 if (tag && tag.content === expectedValue) {
                   console.log(`${key} is valid.`);
+                  validationResult[key] = true;
                 } else {
                   console.log(`${key} is invalid. Expected: ${expectedValue} | Found: ${tag ? tag.content : 'Not found'}`);
+                  validationResult[key] = false;
                   allTagsValid = false;
                 }
               }
             }
+
+            validationResults.push(validationResult);
+            console.log(`Validation result: ${allTagsValid ? 'All tags are valid.' : 'Some tags are invalid.'}`);
 
             console.log(`Validation result: ${allTagsValid ? 'All tags are valid.' : 'Some tags are invalid.'}`);
           } else {
@@ -82,8 +91,22 @@ const csvFile = 'urls.csv';
         queue.push(row);
       });
 
-      queue.drain(() => {
+      queue.drain(async () => {
         console.log('All tasks completed.');
+        
+        // Write the validation results to a new CSV file
+        const csvWriter = createCsvWriter({
+          path: outputCsvFile,
+          header: Object.keys(rows[0]).map(key => ({ id: key, title: key })),
+        });
+
+        try {
+          await csvWriter.writeRecords(validationResults);
+          console.log(`Validation results saved to ${outputCsvFile}.`);
+        } catch (error) {
+          console.error(`Error writing to ${outputCsvFile}: ${error.message}`);
+        }
+
         browser.close();
       });
     });
