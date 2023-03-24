@@ -8,7 +8,6 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 puppeteer.use(StealthPlugin());
 
 const csvFile = 'urls.csv';
-const outputCsvFile = 'output.csv';
 
 (async () => {
   const validationResults = [];
@@ -79,10 +78,6 @@ const outputCsvFile = 'output.csv';
         callback();
       }, concurrency);
 
-
-
-
-
       rows.forEach((row) => {
         queue.push(row);
       });
@@ -92,15 +87,15 @@ const outputCsvFile = 'output.csv';
 
         // Write the validation results to a new CSV file
         const csvWriter = createCsvWriter({
-          path: outputCsvFile,
+          path: csvFile,
           header: Object.keys(rows[0]).map(key => ({ id: key, title: key })),
         });
 
         try {
           await csvWriter.writeRecords(validationResults);
-          console.log(`Validation results saved to ${outputCsvFile}.`);
+          console.log(`Validation results saved to ${csvFile}.`);
         } catch (error) {
-          console.error(`Error writing to ${outputCsvFile}: ${error.message}`);
+          console.error(`Error writing to ${csvFile}: ${error.message}`);
         }
 
         browser.close();
