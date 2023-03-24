@@ -3,7 +3,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
 const csvParser = require('csv-parser');
 const async = require('async');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter; // Import the library
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 puppeteer.use(StealthPlugin());
 
@@ -11,7 +11,7 @@ const csvFile = 'urls.csv';
 const outputCsvFile = 'output.csv';
 
 (async () => {
-  const validationResults = []; 
+  const validationResults = [];
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36');
@@ -25,10 +25,8 @@ const outputCsvFile = 'output.csv';
       rows.push(row);
     })
     .on('end', async () => {
-      const concurrency = 1; // Adjust this value according to your system's capabilities
+      const concurrency = 1;
       const queue = async.queue(async (row, callback) => {
-        // Your existing CSV processing code here
-
         const url = row.url;
 
         console.log(`Checking SEO meta tags for ${url}`);
@@ -50,30 +48,26 @@ const outputCsvFile = 'output.csv';
             console.log('Open Graph tags:', ogTags);
             console.log('Twitter Card tags:', twitterTags);
 
-            // Compare with expected values
             const validationResult = { url };
-            let allTagsValid = true;
             for (const key in row) {
-              if (key !== 'url') {
+              if (key !== 'url' && !key.endsWith(' status')) {
                 const expectedValue = row[key];
                 const [prefix, property] = key.split(':');
                 const tag = (prefix === 'og') ? ogTags.find(t => t.property === key) : twitterTags.find(t => t.name === key);
 
+                const statusKey = `${key} status`;
                 if (tag && tag.content === expectedValue) {
                   console.log(`${key} is valid.`);
-                  validationResult[key] = true;
+                  validationResult[statusKey] = 'correct';
                 } else {
                   console.log(`${key} is invalid. Expected: ${expectedValue} | Found: ${tag ? tag.content : 'Not found'}`);
-                  validationResult[key] = false;
-                  allTagsValid = false;
+                  validationResult[statusKey] = 'incorrect';
                 }
+                validationResult[key] = row[key]; // Copy the value from the input row
               }
             }
 
             validationResults.push(validationResult);
-            console.log(`Validation result: ${allTagsValid ? 'All tags are valid.' : 'Some tags are invalid.'}`);
-
-            console.log(`Validation result: ${allTagsValid ? 'All tags are valid.' : 'Some tags are invalid.'}`);
           } else {
             console.log('Error fetching the page. Skipping meta tags check.');
           }
@@ -82,10 +76,12 @@ const outputCsvFile = 'output.csv';
         }
 
         console.log('-------------------------------------');
-
-        // Don't forget to call callback() at the end of your code to signal task completion
         callback();
       }, concurrency);
+
+
+
+
 
       rows.forEach((row) => {
         queue.push(row);
@@ -93,7 +89,7 @@ const outputCsvFile = 'output.csv';
 
       queue.drain(async () => {
         console.log('All tasks completed.');
-        
+
         // Write the validation results to a new CSV file
         const csvWriter = createCsvWriter({
           path: outputCsvFile,
