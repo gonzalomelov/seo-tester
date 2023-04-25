@@ -7,7 +7,13 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 puppeteer.use(StealthPlugin());
 
-const csvFile = 'urls.csv';
+const inputFilename = process.argv[2];
+if (!inputFilename) {
+  console.error('Please provide a CSV file as an argument.');
+  process.exit(1);
+}
+
+const csvFile = inputFilename;
 
 (async () => {
   const validationResults = [];
