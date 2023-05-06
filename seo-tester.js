@@ -55,60 +55,65 @@ const csvFile = inputFilename;
 
             const validationResult = { url };
             for (const key in row) {
-              if (key !== 'url' && !key.endsWith(' status')) {
+              if (key.endsWith(' expected')) {
                 const expectedValue = row[key];
-                const [prefix, property] = key.split(':');
-                const tag = (prefix === 'og') ? ogTags.find(t => t.property === key) : twitterTags.find(t => t.name === key);
+                const prefixAndProperty = key.split(' ')[0];
+                const [prefix, property] = prefixAndProperty.split(':');
+                const tag = (prefix === 'og') ? ogTags.find(t => t.property === prefixAndProperty) : twitterTags.find(t => t.name === prefixAndProperty);
 
-                const statusKey = `${key} status`;
+                const statusKey = `${prefixAndProperty} status`;
+                const currentKey = `${prefixAndProperty} current`;
+
                 if (tag && tag.content === expectedValue) {
-                  console.log(`${key} is valid.`);
+                  console.log(`${prefixAndProperty} is valid.`);
                   validationResult[statusKey] = 'correct';
                 } else {
-                  console.log(`${key} is invalid. Expected: ${expectedValue} | Found: ${tag ? tag.content : 'Not found'}`);
+                  console.log(`${prefixAndProperty} is invalid. Expected: ${expectedValue} | Found: ${tag ? tag.content : 'Not found'}`);
                   validationResult[statusKey] = 'incorrect';
                 }
                 validationResult[key] = row[key]; // Copy the value from the input row
+                validationResult[currentKey] = tag ? tag.content : 'Not found';
               }
             }
 
             validationResults.push(validationResult);
+         
           } else {
             console.log('Error fetching the page. Skipping meta tags check.');
           }
         } catch (error) {
           console.error(`Error navigating to ${url}: ${error.message}`);
         }
-
+    
         console.log('-------------------------------------');
         callback();
       }, concurrency);
-
+    
       rows.forEach((row) => {
         queue.push(row);
       });
-
+    
       queue.drain(async () => {
         console.log('All tasks completed.');
-
+    
         // Write the validation results to a new CSV file
         const csvWriter = createCsvWriter({
           path: csvFile,
           header: Object.keys(rows[0]).map(key => ({ id: key, title: key })),
         });
-
+    
         try {
           await csvWriter.writeRecords(validationResults);
-          console.log(`Validation results saved to ${csvFile}.`);
+          console.log(`Validation results saved to output_${csvFile}.`);
         } catch (error) {
-          console.error(`Error writing to ${csvFile}: ${error.message}`);
+          console.error(`Error writing to output_${csvFile}: ${error.message}`);
         }
-
+    
         browser.close();
       });
     });
 
   parser.write(csvData);
   parser.end();
-
-})();
+  
+})();    
